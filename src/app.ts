@@ -23,7 +23,7 @@ app.get('/', (_: Request, res: Response) => successResponse({ data: { date: new 
 app.use((req: Request, res: Response) => errorResponse({
   message: `[${req.method}]: ${req.originalUrl} not found`,
   res,
-  status: 404,
+  status : 404,
 }));
 
 export default app;
