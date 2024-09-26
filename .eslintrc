@@ -1,0 +1,47 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint", "sort-keys-fix"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "indent": ["error", 2, { "SwitchCase": 1 }],
+    "quotes": ["error", "single", { "avoidEscape": true }],
+    "semi": ["error", "always"],
+    "curly": ["error", "multi",  "consistent"],
+    "no-empty": "error",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "sort-keys-fix/sort-keys-fix": "error",
+    "object-curly-spacing": ["error", "always"],
+    "array-bracket-spacing": ["error", "always"],
+    "arrow-body-style": ["error", "as-needed"],
+    "no-spaced-func": "error",
+    "space-in-parens": ["error", "never"],
+    "eqeqeq": ["error", "always"],
+    "spaced-comment": ["error", "always"],
+    "space-before-blocks": ["error", "always"],
+    "padding-line-between-statements": ["error", { "blankLine": "always", "prev": "*", "next": "return" }],
+    "keyword-spacing": [
+      "error", 
+      { 
+        "overrides": { 
+          "if": { "after": false }, 
+          "while": { "before": true }, 
+          "catch": { "before": true } 
+        } 
+      }
+    ],
+    "max-len": [
+      "error",
+      {
+        "code": 150,
+        "ignoreUrls": true,
+        "ignoreStrings": true,
+        "ignorePattern": "^\\s*var\\s.+=\\s*require\\s*\\("
+      }
+    ]
+  }
+}
