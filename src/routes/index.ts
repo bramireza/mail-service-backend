@@ -1,9 +1,11 @@
 import { Router } from 'express';
-import testRouter from './test.routes';
+import EmailTemplateRouter from './emailTemplate';
+import MailingRouter from './mailing';
 
 const mainRouter = Router();
 
 // add some routes
-mainRouter.use('/test', testRouter);
+mainRouter.use('/emailTemplate', EmailTemplateRouter);
+mainRouter.use('/mailing', MailingRouter);
 
 export default mainRouter;
