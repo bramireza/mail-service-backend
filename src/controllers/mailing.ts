@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { errorResponse, successResponse } from '../utils';
-import MailingQueueInstance from '../actuators/mailingQueue/factory';
+import MailingQueueInstance from '../actuators/mailingQueue';
 
 class Mailing {
   async sendMails(req: Request, res: Response) {
     try {
       const { data } = req.body;
 
-      data?.forEach((emailData: any) => {
+      data?.forEach((emailData: unknown) => {
         MailingQueueInstance.push(emailData);
       });
 

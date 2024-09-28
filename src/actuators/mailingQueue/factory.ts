@@ -1,25 +1,21 @@
-import AbstractMailingQueueInstance from './asbtract';
-import NodemailerMailingQueueInstance from './nodemailer';
+import { NodemailerMailing } from './nodemailer';
+import { QueueHandler } from './queue';
 
 export const MailingQueueType = {
-  NODEMAILER: 'nodemailer',
+  NODEMAILER: 'nodemailer'
 };
 
-export interface MailingQueueFactoryArgs {
-  type?: string;
-}
-
 export class MailingQueueFactory {
-  static getInstance({ type }: MailingQueueFactoryArgs) {
+  static createQueue(type: string) {
     switch (type) {
-      case MailingQueueType.NODEMAILER:
-        return NodemailerMailingQueueInstance();
+      case MailingQueueType.NODEMAILER: {
+        const nodemailerProvider = new NodemailerMailing();
+
+        return new QueueHandler(nodemailerProvider.sendMails.bind(nodemailerProvider));
+      }
+
       default:
-        return AbstractMailingQueueInstance();
+        throw new Error('Unknown mailing provider type');
     }
   }
 }
-
-const MailingQueueInstance = MailingQueueFactory.getInstance({ type: MailingQueueType.NODEMAILER });
-
-export default MailingQueueInstance;

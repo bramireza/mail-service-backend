@@ -1,9 +1,7 @@
 import nodemailer, { Transporter } from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
-import BetterQueue from 'better-queue';
 
-import UserModel from '../../models/accounts/user';
-import { AbstractMailingQueue, defaultStorageOptions, ICampaignMailing, IEmailTemplate } from './asbtract';
+import { AbstractMailing, ICampaignMailing, IEmailTemplate, SendEmailArgs, SendMailResponse } from './abstract';
 import EmailTemplateActuator from '../emailTemplate';
 
 import {
@@ -12,37 +10,13 @@ import {
   OAUTH_CLIENT_SECRET,
   OAUTH_REFRESH_TOKEN
 } from '../../configs';
-import { groupBy, keyBy, onlyUnique } from '../../utils';
+import { compileTemplate, keyBy } from '../../utils';
 
-class NodemailerMailingQueue extends AbstractMailingQueue {
-  protected queue: BetterQueue;
-  protected static defaultInstance: NodemailerMailingQueue;
+export class NodemailerMailing extends AbstractMailing {
   private smtpTransport?: SMTPTransport;
   private transport?: Transporter;
 
-  constructor() {
-    super();
-
-    this.queue = new BetterQueue(
-      async (...args) => {
-        await this.sendMails(...args);
-      },
-      { batchSize: 50, store: defaultStorageOptions },
-    );
-  }
-
-  static getInstance() {
-    if(!NodemailerMailingQueue.defaultInstance)
-      NodemailerMailingQueue.defaultInstance = new this();
-
-    return NodemailerMailingQueue.defaultInstance;
-  }
-
-  static queue() {
-    return NodemailerMailingQueue.getInstance().queue;
-  }
-  
-  private  getSMTPTransport() {
+  private getSMTPTransport() {
     if(!this.smtpTransport)
       this.smtpTransport = new SMTPTransport({
         auth: {
@@ -67,7 +41,7 @@ class NodemailerMailingQueue extends AbstractMailingQueue {
     return this.transport;
   }
 
-  private getParsedOptions({ subject, senderEmail, ccAddresses, toAddresses, toEmail, htmlPart  }: IEmailTemplate & { htmlPart: string}) {
+  getParsedOptions({ subject, senderEmail, ccAddresses, toAddresses, toEmail, htmlPart  }: IEmailTemplate & { htmlPart: string}) {
     return {
       from   : `${senderEmail ?? 'Notificaciones'} <${EMAIL_NOTIFICATION}>`,
       html   : htmlPart,
@@ -81,22 +55,34 @@ class NodemailerMailingQueue extends AbstractMailingQueue {
 
   }
 
-  async getGroupDataByTemplate(batch: ICampaignMailing[]) {
-    const userIds = batch
-      .map(({ userId }) => userId)
-      .filter(onlyUnique);
-    
-    const users = await UserModel.find({ _id: { $in: userIds } }).lean();
-
-    return {
-      groupDataByTemplate: groupBy(batch, 'templateName'),
-      userById           : keyBy(users, '_id')
-    };
-  }
-
-  async sendMails(batch: ICampaignMailing[], cb: () => unknown) {
+  async sendMail(args: SendEmailArgs): Promise<SendMailResponse> {
     try {
       const transport = this.getTransport();
+
+      const options = this.getParsedOptions(args);
+
+      const infoResponse = await transport.sendMail(options);
+
+      if(!infoResponse) throw new Error('not found infoResponse to send Email');
+
+      return {
+        serviceResponse: infoResponse,
+        success        : true
+      };
+    } catch (error: unknown) {
+      console.log('🚀 ~ NodemailerMailing ~ sendMail ~ error:', error);
+
+      return {
+        serviceResponse: {
+          errorMessage: (error instanceof Error) ? error.message : 'error to send mail',
+        },
+        success: false
+      };
+    }
+  }
+
+  async sendMails(batch: ICampaignMailing[], cb: () => void) {
+    try {
 
       const { groupDataByTemplate } = await this.getGroupDataByTemplate(batch);
 
@@ -113,38 +99,27 @@ class NodemailerMailingQueue extends AbstractMailingQueue {
           continue;
         
         const storeResults = await Promise.allSettled(campaingGroup.map(async (batch) => {
-          const { emailTemplate } = batch ?? {};
+          const { emailTemplate, templateData } = batch ?? {};
 
-          const template = templateBy[templateName];
+          const { htmlPart } = templateBy[templateName] ?? {};
 
-          const result = {
+          if(!htmlPart) return {
             batch,
-            serviceResponse: {},
-            success        : true,
+            serviceResponse: null,
+            success        : false
           };
-  
-          try {
-            const options = this.getParsedOptions({
-              ...emailTemplate,
-              htmlPart: template.htmlPart
-            });
 
-            const infoResponse = await transport.sendMail(options);
-  
-            if(!infoResponse) {
-              result.success = false;
+          const htmlPartWithData = compileTemplate({ htmlPart, templateData });
 
-              return result;
-            }
+          const responseMail = await this.sendMail({
+            ...emailTemplate,
+            htmlPart: htmlPartWithData
+          });
   
-            result.serviceResponse = infoResponse;
-          } catch (error: unknown) {
-            console.log('🚀 ~ NodemailerMailingQueue ~ storeResults ~ error:', error);
-
-            result.success = false;
-          }
-  
-          return result;
+          return {
+            batch,
+            ...responseMail
+          };
         }));        
         console.log('🚀 ~ NodemailerMailingQueue ~ storeResults ~ storeResults:', JSON.stringify(storeResults, null, 2));
       }
@@ -160,5 +135,3 @@ class NodemailerMailingQueue extends AbstractMailingQueue {
     }
   }
 }
-
-export default NodemailerMailingQueue.queue;

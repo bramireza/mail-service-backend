@@ -1,19 +1,23 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-export const groupBy = function<T>(xs: T[], key: keyof T | ((element: T) => string)):{ [x: string]: T[]; } {
-  return xs.reduce(function(rv: any, x: T) {
-    (rv[typeof key === 'function' ? key(x) : x[key]] = rv[typeof key === 'function' ? key(x) : x[key]] || []).push(x);
+export const groupBy = <T>(arr: T[], key: keyof T | ((elem: T) => string)): Record<string, T[]> => arr.reduce<Record<string, T[]>>((acc, item) => {
+  const groupKey = typeof key === 'function' ? key(item) : String(item[key]);
+    
+  if(!acc[groupKey]) 
+    acc[groupKey] = []; // Inicializa el array si no existe.
+    
+    
+  acc[groupKey].push(item); // Añade el elemento al grupo correspondiente.
+    
+  return acc;
+}, {});
 
-    return rv;
-  }, {});
-};
 
-export const onlyUnique = (value: string, index: number, self: any) => self.indexOf(value) === index;
+export const onlyUnique = <T>(value: T, index: number, self: T[]): boolean => self.indexOf(value) === index;
 
-export const keyBy = <T = any>(arr: Record<string, T>[], key: string) => arr
-  .reduce((prev: Record<string, T>, next)=> {
-    const newKey = String(next[key]);
+export const keyBy = <T extends Record<string, unknown>, K extends keyof T>(arr: T[], key: K): Record<string, T> => arr
+  .reduce((acc: Record<string, T>, item: T) => {
+    const newKey = String(item[key]);
 
-    prev[newKey] = next as any;
+    acc[newKey] = item;
 
-    return prev;
+    return acc;
   }, {});
