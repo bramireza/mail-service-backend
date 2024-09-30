@@ -12,3 +12,4 @@ export const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID as string;
 export const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET as string;
 export const OAUTH_REFRESH_TOKEN = process.env.OAUTH_REFRESH_TOKEN as string;
 export const EMAIL_NOTIFICATION = process.env.EMAIL_NOTIFICATION as string;
+export const TEST_EMAIL = process.env.TEST_EMAIL as string;

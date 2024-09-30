@@ -1,7 +1,7 @@
 import nodemailer, { Transporter } from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
-import { AbstractMailing, ICampaignMailing, IEmailTemplate, SendEmailArgs, SendMailResponse } from './abstract';
+import { AbstractMailing, ICampaignMailing, ICampaignMailingStore, IEmailTemplate, SendEmailArgs, SendMailResponse } from './abstract';
 import EmailTemplateActuator from '../emailTemplate';
 
 import {
@@ -10,7 +10,7 @@ import {
   OAUTH_CLIENT_SECRET,
   OAUTH_REFRESH_TOKEN
 } from '../../configs';
-import { compileTemplate, keyBy } from '../../utils';
+import { compileTemplate, keyBy, sleep } from '../../utils';
 
 export class NodemailerMailing extends AbstractMailing {
   private smtpTransport?: SMTPTransport;
@@ -41,18 +41,27 @@ export class NodemailerMailing extends AbstractMailing {
     return this.transport;
   }
 
-  getParsedOptions({ subject, senderEmail, ccAddresses, toAddresses, toEmail, htmlPart  }: IEmailTemplate & { htmlPart: string}) {
+  getParsedOptions({
+    subject,
+    senderEmail,
+    senderName,
+    ccAddresses,
+    toAddresses,
+    toEmail,
+    htmlPart,
+    sandbox
+  }: IEmailTemplate & { htmlPart: string }) {
+    const toEmails = this.getEmailRecipients({ sandbox, toAddresses, toEmail });
+    
+    const senderNotification = this.getSenderNotification({ senderEmail, senderName });
+
     return {
-      from   : `${senderEmail ?? 'Notificaciones'} <${EMAIL_NOTIFICATION}>`,
+      from   : senderNotification,
       html   : htmlPart,
       replyTo: ccAddresses,
       subject,
-      to     : [
-        toEmail,
-        ...toAddresses?.length ? toAddresses : []
-      ]
+      to     : toEmails
     };
-
   }
 
   async sendMail(args: SendEmailArgs): Promise<SendMailResponse> {
@@ -65,9 +74,16 @@ export class NodemailerMailing extends AbstractMailing {
 
       if(!infoResponse) throw new Error('not found infoResponse to send Email');
 
+      const { response, messageId } = infoResponse;
+
+      console.log('🚀 ~ NodemailerMailing ~ sendMail ~ messageId:', messageId);
+
       return {
-        serviceResponse: infoResponse,
-        success        : true
+        serviceResponse: {
+          messageId,
+          response
+        },
+        success: true
       };
     } catch (error: unknown) {
       console.log('🚀 ~ NodemailerMailing ~ sendMail ~ error:', error);
@@ -83,8 +99,7 @@ export class NodemailerMailing extends AbstractMailing {
 
   async sendMails(batch: ICampaignMailing[], cb: () => void) {
     try {
-
-      const { groupDataByTemplate } = await this.getGroupDataByTemplate(batch);
+      const { groupDataByTemplate, userById } = await this.getGroupDataByTemplate(batch);
 
       const templateNames = Object.keys(groupDataByTemplate);
 
@@ -98,18 +113,26 @@ export class NodemailerMailing extends AbstractMailing {
         if(!campaingGroup?.length) 
           continue;
         
-        const storeResults = await Promise.allSettled(campaingGroup.map(async (batch) => {
-          const { emailTemplate, templateData } = batch ?? {};
+        const storeResults = await Promise.all(campaingGroup.map(async (batch) => {
+          const batchStore: ICampaignMailingStore = batch;
+          const { emailTemplate, templateData, userId } = batchStore ;
 
           const { htmlPart } = templateBy[templateName] ?? {};
 
+          if(userId)
+            batchStore['userInfo'] = userById[userId];
+
           if(!htmlPart) return {
-            batch,
-            serviceResponse: null,
-            success        : false
+            batch          : batchStore,
+            serviceResponse: {
+              errorMessage: 'htmlPart not found in template',
+            },
+            success: false
           };
 
           const htmlPartWithData = compileTemplate({ htmlPart, templateData });
+
+          batchStore.emailTemplate['body'] = htmlPartWithData;
 
           const responseMail = await this.sendMail({
             ...emailTemplate,
@@ -117,16 +140,17 @@ export class NodemailerMailing extends AbstractMailing {
           });
   
           return {
-            batch,
+            batch: batchStore,
             ...responseMail
           };
-        }));        
-        console.log('🚀 ~ NodemailerMailingQueue ~ storeResults ~ storeResults:', JSON.stringify(storeResults, null, 2));
+        }));
+
+        await this.createCampaigns(storeResults);
       }
       
-      setTimeout(() => {
-        cb();
-      }, 1000);
+      await sleep(1_000);
+      
+      cb();
     }
     catch (error) {
       console.error(error);
