@@ -2,10 +2,9 @@ export const groupBy = <T>(arr: T[], key: keyof T | ((elem: T) => string)): Reco
   const groupKey = typeof key === 'function' ? key(item) : String(item[key]);
     
   if(!acc[groupKey]) 
-    acc[groupKey] = []; // Inicializa el array si no existe.
+    acc[groupKey] = [];
     
-    
-  acc[groupKey].push(item); // Añade el elemento al grupo correspondiente.
+  acc[groupKey].push(item);
     
   return acc;
 }, {});
