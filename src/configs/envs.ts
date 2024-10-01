@@ -13,3 +13,17 @@ export const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET as string;
 export const OAUTH_REFRESH_TOKEN = process.env.OAUTH_REFRESH_TOKEN as string;
 export const EMAIL_NOTIFICATION = process.env.EMAIL_NOTIFICATION as string;
 export const TEST_EMAIL = process.env.TEST_EMAIL as string;
+
+const getApiKeys = () => {
+  const apiKeys = Object.keys(process.env)
+    .filter(key => key.startsWith('API_KEY'))
+    .reduce((result: Record<string, string>, key) => {
+      result[key] = process.env[key]!;
+
+      return result;
+    }, {});
+  
+  return apiKeys;
+};
+
+export const API_KEYS = getApiKeys();
