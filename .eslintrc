@@ -24,6 +24,14 @@
     "spaced-comment": ["error", "always"],
     "space-before-blocks": ["error", "always"],
     "padding-line-between-statements": ["error", { "blankLine": "always", "prev": "*", "next": "return" }],
+    "key-spacing": [2, { "align": "colon" }],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
     "keyword-spacing": [
       "error", 
       { 

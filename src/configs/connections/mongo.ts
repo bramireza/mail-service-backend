@@ -1,16 +1,24 @@
 import mongoose from 'mongoose';
-import { MONGO_CONNECTION_URI } from '../envs';
+import { MONGO_CONNECTION_NOTIFICATION_URI, MONGO_CONNECTION_ACCOUNT_URI } from '../envs';
 
-export const connectionMongo = mongoose.createConnection(MONGO_CONNECTION_URI);
+const createMongoConnection = (uri: string, dbName: string) => {
+  const connection = mongoose.createConnection(uri);
 
-connectionMongo.on('error', (err) => {
-  console.error('MongoDB connection error:', err);
-});
+  connection.on('error', (err) => {
+    console.error(`MongoDB connection error [${dbName}]:`, err);
+  });
 
-connectionMongo.once('open', () => {
-  console.log('MongoDB connection established.');
-});
+  connection.once('open', () => {
+    console.log(`MongoDB connection established [${dbName}].`);
+  });
 
-connectionMongo.on('disconnected', () => {
-  console.log('MongoDB connection disconnected.');
-});
+  connection.on('disconnected', () => {
+    console.log(`MongoDB connection disconnected [${dbName}].`);
+  });
+
+  return connection;
+};
+
+export const connectionNotificationsDB = createMongoConnection(MONGO_CONNECTION_NOTIFICATION_URI, 'NotificationsDB');
+
+export const connectionAccountsDB = createMongoConnection(MONGO_CONNECTION_ACCOUNT_URI, 'AccountsDB');
